@@ -48,11 +48,16 @@ BookWorm is a full-stack web application that allows users to search for books, 
 
 This will launch both the client (on port 3000) and server (on port 3001) concurrently.
 
-## 📸 Screenshots
+## 📸 Screenshots/Link
 
-![BookWorm Search Page](./screenshots/search-page.png)
-![BookWorm Saved Books](./screenshots/saved-books.png)
-![BookWorm Login Modal](./screenshots/login-modal.png)
+### Screenshots
+- **Search Page**: ![BookWorm Search Page](./screenshots/search-page.png)
+- **Search Results**: ![BookWorm Search Books](./screenshots/searchwork.png)
+- **Login Modal**: ![BookWorm Login Modal](./screenshots/login-modal.png)
+- **Deployed Application**: ![BookWorm Render](./screenshots/render.png)
+
+### Deployed Application
+Access the live application here: [BookWorm on Render](https://bookworm-ww3x.onrender.com)
 
 ## 📝 API Endpoints
 
@@ -111,6 +116,14 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 👨‍💻 Author
 
 Joseph Montalvo IV
+
+## Credits
+
+- Claude 
+- Request-Response Blog
+- Google
+- Online Assistant
+- Copilot
 
 ## 🙏 Acknowledgments
 
