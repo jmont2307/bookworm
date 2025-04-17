@@ -27,7 +27,11 @@ const PORT = process.env.PORT || 3001;
 
 // Add health check endpoint
 app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok', time: new Date().toISOString() });
+  res.status(200).json({ 
+    status: 'ok', 
+    time: new Date().toISOString(),
+    database: db.readyState === 1 ? 'connected' : 'disconnected'
+  });
 });
 
 // Debug routes and environment
@@ -49,6 +53,8 @@ if (process.env.DEBUG === 'true') {
       cwd: process.cwd(),
       mongoUri: process.env.MONGODB_URI ? '[CONFIGURED]' : '[MISSING]',
       jwtSecret: process.env.JWT_SECRET_KEY ? '[CONFIGURED]' : '[MISSING]',
+      mongoDbStatus: db.readyState,
+      mongoDbReadyState: ['disconnected', 'connected', 'connecting', 'disconnecting'][db.readyState] || 'unknown',
       possibleClientPaths
     };
     
@@ -98,22 +104,54 @@ if (process.env.DEBUG === 'true') {
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-// Apollo Server setup
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-});
+// Set up Apollo Server
+const setupApolloServer = async () => {
+  try {
+    // Apollo Server setup
+    const server = new ApolloServer({
+      typeDefs,
+      resolvers,
+    });
+    
+    // Start the Apollo server
+    await server.start();
+    
+    // Apply Apollo Server as middleware
+    app.use('/graphql', expressMiddleware(server, {
+      context: authMiddleware
+    }));
+    
+    console.log('🚀 GraphQL server ready');
+  } catch (error) {
+    console.error('Failed to set up Apollo Server:', error);
+    
+    // Fallback GraphQL endpoint
+    app.use('/graphql', (_req, res) => {
+      res.status(500).send(`
+        <html>
+          <head>
+            <title>GraphQL Error</title>
+            <style>
+              body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+              .error { color: red; background: #ffeeee; padding: 10px; border-radius: 5px; }
+            </style>
+          </head>
+          <body>
+            <h1>GraphQL Error</h1>
+            <p>The GraphQL server failed to start.</p>
+            <div class="error">
+              <p>Error details: Apollo Server initialization failed</p>
+            </div>
+            <p>Please check the server logs for more information.</p>
+          </body>
+        </html>
+      `);
+    });
+  }
+};
 
-// Start the Apollo server
-await server.start();
-
-// Apply Apollo Server as middleware
-app.use('/graphql', expressMiddleware(server, {
-  context: authMiddleware
-}));
-
-// if we're in production, serve client/build as static assets
-if (process.env.NODE_ENV === 'production') {
+// Set up client file serving
+const setupClientServing = () => {
   // Try multiple possible paths for the client files
   let clientDistPath = '';
   const possiblePaths = [
@@ -166,11 +204,13 @@ if (process.env.NODE_ENV === 'production') {
             a { color: #4a25aa; text-decoration: none; }
             a:hover { text-decoration: underline; }
             .btn { display: inline-block; background: #4a25aa; color: white; padding: 0.5rem 1rem; border-radius: 4px; margin-top: 1rem; }
+            .alert { background: #fff5f5; border-left: 4px solid #dc3545; padding: 1rem; margin-bottom: 1rem; }
           </style>
         </head>
         <body>
           <div class="container">
             <h1>BookWorm - Book Search Engine</h1>
+            ${db.readyState !== 1 ? '<div class="alert">⚠️ Database connection is currently unavailable. Some features may not work properly.</div>' : ''}
             <p>The client application couldn't be loaded. Please check the application configuration.</p>
             <p>You can try the GraphQL API directly:</p>
             <a href="/graphql" class="btn">Open GraphQL Playground</a>
@@ -182,7 +222,7 @@ if (process.env.NODE_ENV === 'production') {
       `);
     }
   });
-}
+};
 
 // Test MongoDB connection in development
 if (process.env.NODE_ENV !== 'production') {
@@ -193,12 +233,37 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
+// Initialize Apollo Server
+await setupApolloServer();
+
+// Setup client file serving
+if (process.env.NODE_ENV === 'production') {
+  setupClientServing();
+}
+
+// Start server without waiting for DB connection
+const server = app.listen(PORT, () => {
+  console.log(`🌍 Server running on port ${PORT}`);
+  console.log(`🔒 Authentication: ${process.env.JWT_SECRET_KEY === 'temporarysecretkey' ? 'Using default secret (not secure for production)' : 'Using custom secret'}`);
+  console.log(`📂 Server directory: ${__dirname}`);
+  console.log(`📂 Current working directory: ${process.cwd()}`);
+  console.log(`🗄️ Database status: ${db.readyState === 1 ? 'Connected' : 'Not connected'}`);
+});
+
+// Handle connection events with more grace
+db.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+  // Keep the server running even if DB connection fails
+});
+
 db.once('open', () => {
-  app.listen(PORT, () => {
-    console.log(`🌍 Server running on port ${PORT}`);
-    console.log(`🚀 GraphQL at http://localhost:${PORT}/graphql`);
-    console.log(`🔒 Authentication: ${process.env.JWT_SECRET_KEY === 'temporarysecretkey' ? 'Using default secret (not secure for production)' : 'Using custom secret'}`);
-    console.log(`📂 Server directory: ${__dirname}`);
-    console.log(`📂 Current working directory: ${process.cwd()}`);
+  console.log('MongoDB connection established successfully');
+});
+
+// Handle server shutdown gracefully
+process.on('SIGINT', () => {
+  server.close(() => {
+    console.log('Server shut down gracefully');
+    process.exit(0);
   });
 });
