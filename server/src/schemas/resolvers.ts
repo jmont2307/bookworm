@@ -1,9 +1,10 @@
 import User from '../models/User.js';
 import { signToken } from '../services/auth.js';
 import { GraphQLError } from 'graphql';
+import { BookInput } from './types.js';
 
 // Create a custom AuthenticationError using GraphQLError
-const AuthenticationError = (message) => {
+const AuthenticationError = (message: string): GraphQLError => {
   return new GraphQLError(message, {
     extensions: {
       code: 'UNAUTHENTICATED'
@@ -11,9 +12,17 @@ const AuthenticationError = (message) => {
   });
 };
 
+interface ResolverContext {
+  user: {
+    _id: unknown;
+    username: string;
+    email: string;
+  } | null;
+}
+
 const resolvers = {
   Query: {
-    me: async (_, __, { user }) => {
+    me: async (_: any, __: any, { user }: ResolverContext) => {
       if (!user) {
         throw AuthenticationError('Not logged in');
       }
@@ -22,13 +31,13 @@ const resolvers = {
   },
 
   Mutation: {
-    addUser: async (_, { username, email, password }) => {
+    addUser: async (_: any, { username, email, password }: { username: string; email: string; password: string }) => {
       const user = await User.create({ username, email, password });
       const token = signToken(user.username, user.email, user._id);
       return { token, user };
     },
 
-    login: async (_, { email, password }) => {
+    login: async (_: any, { email, password }: { email: string; password: string }) => {
       const user = await User.findOne({ email });
 
       if (!user) {
@@ -45,7 +54,7 @@ const resolvers = {
       return { token, user };
     },
 
-    saveBook: async (_, { input }, { user }) => {
+    saveBook: async (_: any, { input }: { input: BookInput }, { user }: ResolverContext) => {
       if (!user) {
         throw AuthenticationError('You need to be logged in!');
       }
@@ -65,7 +74,7 @@ const resolvers = {
       }
     },
 
-    removeBook: async (_, { bookId }, { user }) => {
+    removeBook: async (_: any, { bookId }: { bookId: string }, { user }: ResolverContext) => {
       if (!user) {
         throw AuthenticationError('You need to be logged in!');
       }

@@ -41,7 +41,7 @@ export const signToken = (username: string, email: string, _id: unknown) => {
 };
 
 // Apollo Server context function for authentication
-export const authMiddleware = ({ req }: { req: Request }) => {
+export const authMiddleware = async ({ req }: { req: Request }) => {
   let token = req.headers.authorization || '';
 
   if (token.startsWith('Bearer ')) {
