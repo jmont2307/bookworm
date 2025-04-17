@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: bookworm
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node server/dist/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://jmont23:thetester@cluster0.sxoiyua.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+      - key: JWT_SECRET_KEY
+        generateValue: true
