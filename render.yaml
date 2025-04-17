@@ -3,8 +3,23 @@ services:
     name: bookworm
     env: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: node server/dist/server.js
+    runtime: node
+    buildCommand: |
+      npm install
+      npm run build || npm run emergency
+      echo "Build process completed"
+      ls -la
+      ls -la server/dist || echo "server/dist not found"
+      ls -la client/dist || echo "client/dist not found"
+      ls -la server/dist/public || echo "server/dist/public not found"
+    startCommand: |
+      echo "Starting application"
+      ls -la
+      if [ ! -f "server/dist/server.js" ]; then
+        echo "server.js not found, running emergency build"
+        node scripts/emergency-build.js
+      fi
+      node server/dist/server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -15,7 +30,3 @@ services:
       - key: DEBUG
         value: "true"
     healthCheckPath: /health
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1

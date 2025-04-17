@@ -42,6 +42,7 @@ if (process.env.DEBUG === 'true') {
       path.join(process.cwd(), 'server/dist/public'),
     ];
     
+    // Create debug info object
     const debugInfo = {
       env: process.env.NODE_ENV,
       dirname: __dirname,
@@ -51,40 +52,45 @@ if (process.env.DEBUG === 'true') {
       possibleClientPaths
     };
     
+    // Add dynamic properties for TypeScript
+    const enhancedDebugInfo = debugInfo as any;
+    
     // Check if client files exist in each location
     possibleClientPaths.forEach((clientPath, index) => {
       try {
         const clientIndex = path.join(clientPath, 'index.html');
         const indexExists = fs.existsSync(clientIndex);
-        debugInfo[`path${index}_exists`] = fs.existsSync(clientPath);
-        debugInfo[`path${index}_indexExists`] = indexExists;
+        enhancedDebugInfo[`path${index}_exists`] = fs.existsSync(clientPath);
+        enhancedDebugInfo[`path${index}_indexExists`] = indexExists;
         
         if (indexExists) {
           const stats = fs.statSync(clientIndex);
-          debugInfo[`path${index}_indexSize`] = stats.size;
-          debugInfo[`path${index}_indexModified`] = stats.mtime.toISOString();
+          enhancedDebugInfo[`path${index}_indexSize`] = stats.size;
+          enhancedDebugInfo[`path${index}_indexModified`] = stats.mtime.toISOString();
         }
-      } catch (err) {
-        debugInfo[`path${index}_error`] = err.message;
+      } catch (error) {
+        const err = error as Error;
+        enhancedDebugInfo[`path${index}_error`] = err.message;
       }
     });
     
     // List directory contents
     try {
-      debugInfo['root_contents'] = fs.readdirSync(process.cwd());
+      enhancedDebugInfo['root_contents'] = fs.readdirSync(process.cwd());
       
       const renderRoot = '/opt/render/project/src';
       if (fs.existsSync(renderRoot)) {
-        debugInfo['render_root_exists'] = true;
-        debugInfo['render_root_contents'] = fs.readdirSync(renderRoot);
+        enhancedDebugInfo['render_root_exists'] = true;
+        enhancedDebugInfo['render_root_contents'] = fs.readdirSync(renderRoot);
       } else {
-        debugInfo['render_root_exists'] = false;
+        enhancedDebugInfo['render_root_exists'] = false;
       }
-    } catch (err) {
-      debugInfo['list_error'] = err.message;
+    } catch (error) {
+      const err = error as Error;
+      enhancedDebugInfo['list_error'] = err.message;
     }
     
-    res.json(debugInfo);
+    res.json(enhancedDebugInfo);
   });
 }
 
